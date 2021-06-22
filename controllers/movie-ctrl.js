@@ -1,4 +1,6 @@
 const Movie = require('../models/movie-model')
+const auth = require('../auth.json')
+const axios = require('axios')
 
 createMovie = (req, res) => {
     const body = req.body
@@ -116,10 +118,40 @@ getMovies = async (req, res) => {
     }).catch(err => console.log(err))
 }
 
+getPuuidByName = async (req, res) => {
+    const encodedName = encodeURI(req.params.name);
+    console.log('searching for ', encodedName);
+    let pid = '';
+    await axios.get(`https://na1.api.riotgames.com/lol/summoner/v4/summoners/by-name/${encodedName}?api_key=${auth.key}`,
+        {
+            headers:
+                { //Request header for Riot API
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
+                    "Accept-Language": "en-US,en;q=0.9",
+                    "Accept-Charset": "application/x-www-form-urlencoded; charset=UTF-8",
+                    "Origin": "https://developer.riotgames.com",
+                }
+        }).catch((e) => {
+            console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
+        }).then(async (response) => {
+            if (!response) {
+                return res
+                .status(404)
+                .json({ success: false, error: `no response` })
+            } else {
+                const { puuid } = response.data;
+                console.log('Pid found');
+                pid = puuid;
+                return res.status(200).json({ success: true, data: pid })
+            }
+        })
+}
+
 module.exports = {
     createMovie,
     updateMovie,
     deleteMovie,
     getMovies,
     getMovieById,
+    getPuuidByName
 }
