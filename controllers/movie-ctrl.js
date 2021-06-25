@@ -1,6 +1,7 @@
 const Movie = require('../models/movie-model')
 const auth = require('../auth.json')
 const axios = require('axios')
+/* const { getMatchData } = require('../../practice-front/src/api') */
 
 const riotAPIHeader = {
     //Request header for Riot API
@@ -127,7 +128,7 @@ getMovies = async (req, res) => {
 
 getMatchListsByName = async (req, res) => {
     const encodedName = encodeURI(req.params.name);
-    console.log('searching for ', encodedName);
+    console.log('searching for summoner:  ', encodedName);
     let pid = '';
     await axios.get(`https://na1.api.riotgames.com/lol/summoner/v4/summoners/by-name/${encodedName}?api_key=${auth.key}`,
         {
@@ -160,11 +161,34 @@ getMatchListsByName = async (req, res) => {
         })
 }
 
+getMatchData = async (req, res) =>{
+    const {matchId} = req.params;
+    console.log(matchId);
+    await axios.get(`https://americas.api.riotgames.com/lol/match/v5/matches/${matchId}?api_key=${auth.key}`,
+        {
+            headers: riotAPIHeader
+        }).catch((e) => {
+            console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
+        }).then(async (response) => {
+            if (!response) {
+                return res
+                    .status(404)
+                    .json({ success: false, error: `no response` })
+            }else{
+                /* console.log(response.data); */
+                return res.status(200).json({success: true, data: response.data})
+            }
+        }).catch((e) => {
+            console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
+        })
+}
+
 module.exports = {
     createMovie,
     updateMovie,
     deleteMovie,
     getMovies,
     getMovieById,
-    getPuuidByName
+    getMatchListsByName,
+    getMatchData
 }
