@@ -2,6 +2,13 @@ const Movie = require('../models/movie-model')
 const auth = require('../auth.json')
 const axios = require('axios')
 
+const riotAPIHeader = {
+    //Request header for Riot API
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Charset": "application/x-www-form-urlencoded; charset=UTF-8",
+    "Origin": "https://developer.riotgames.com",
+}
 createMovie = (req, res) => {
     const body = req.body
 
@@ -118,31 +125,37 @@ getMovies = async (req, res) => {
     }).catch(err => console.log(err))
 }
 
-getPuuidByName = async (req, res) => {
+getMatchListsByName = async (req, res) => {
     const encodedName = encodeURI(req.params.name);
     console.log('searching for ', encodedName);
     let pid = '';
     await axios.get(`https://na1.api.riotgames.com/lol/summoner/v4/summoners/by-name/${encodedName}?api_key=${auth.key}`,
         {
-            headers:
-                { //Request header for Riot API
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.85 Safari/537.36",
-                    "Accept-Language": "en-US,en;q=0.9",
-                    "Accept-Charset": "application/x-www-form-urlencoded; charset=UTF-8",
-                    "Origin": "https://developer.riotgames.com",
-                }
+            headers: riotAPIHeader
         }).catch((e) => {
             console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
         }).then(async (response) => {
             if (!response) {
                 return res
-                .status(404)
-                .json({ success: false, error: `no response` })
+                    .status(404)
+                    .json({ success: false, error: `no response` })
             } else {
                 const { puuid } = response.data;
-                console.log('Pid found');
-                pid = puuid;
-                return res.status(200).json({ success: true, data: pid })
+                await axios.get(`https://americas.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=100&api_key=${auth.key}`,
+                    {
+                        headers: riotAPIHeader
+                    }).then(async (response) => {
+                        await response.data;
+                        let matches = [];
+                        for (let match of response.data) {
+                            if (!matches.includes(match)) {
+                                matches.push(match);
+                            }
+                        }
+                        return res.status(200).json({ success: true, data: matches })
+                    }).catch((e) => {
+                        console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
+                    })
             }
         })
 }
