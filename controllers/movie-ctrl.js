@@ -1,6 +1,8 @@
 const Movie = require('../models/movie-model')
 const auth = require('../auth.json')
 const axios = require('axios')
+const LocalStorage = require('ttl-localstorage')
+
 /* const { getMatchData } = require('../../practice-front/src/api') */
 
 const riotAPIHeader = {
@@ -9,6 +11,7 @@ const riotAPIHeader = {
     "Accept-Language": "en-US,en;q=0.9",
     "Accept-Charset": "application/x-www-form-urlencoded; charset=UTF-8",
     "Origin": "https://developer.riotgames.com",
+    "X-Riot-Token": auth.key
 }
 createMovie = (req, res) => {
     const body = req.body
@@ -130,7 +133,7 @@ getMatchListsByName = async (req, res) => {
     const encodedName = encodeURI(req.params.name);
     console.log('searching for summoner:  ', encodedName);
     let pid = '';
-    await axios.get(`https://na1.api.riotgames.com/lol/summoner/v4/summoners/by-name/${encodedName}?api_key=${auth.key}`,
+    await axios.get(`https://na1.api.riotgames.com/lol/summoner/v4/summoners/by-name/${encodedName}`,
         {
             headers: riotAPIHeader
         }).catch((e) => {
@@ -142,7 +145,7 @@ getMatchListsByName = async (req, res) => {
                     .json({ success: false, error: `no response` })
             } else {
                 const { puuid } = response.data;
-                await axios.get(`https://americas.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=100&api_key=${auth.key}`,
+                await axios.get(`https://americas.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=100`,
                     {
                         headers: riotAPIHeader
                     }).then(async (response) => {
@@ -161,26 +164,63 @@ getMatchListsByName = async (req, res) => {
         })
 }
 
-getMatchData = async (req, res) =>{
-    const {matchId} = req.params;
-    console.log(matchId);
-    await axios.get(`https://americas.api.riotgames.com/lol/match/v5/matches/${matchId}?api_key=${auth.key}`,
-        {
-            headers: riotAPIHeader
-        }).catch((e) => {
-            console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
-        }).then(async (response) => {
-            if (!response) {
-                return res
-                    .status(404)
-                    .json({ success: false, error: `no response` })
-            }else{
-                /* console.log(response.data); */
-                return res.status(200).json({success: true, data: response.data})
-            }
-        }).catch((e) => {
-            console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
-        })
+getMatchData = async (req, res) => {
+    const { matchId } = req.params;
+    const url = `https://americas.api.riotgames.com/lol/match/v5/matches/${matchId}`;
+    console.log(LocalStorage.LocalStorage);
+    LocalStorage.get(`${matchId}`).then(async (data) => {
+        if (data === null) {
+            await axios.get(url,
+                {
+                    headers: riotAPIHeader
+                }).catch((e) => {
+                    console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
+                }).then(async (response) => {
+                    if (!response) {
+                        return res
+                            .status(404)
+                            .json({ success: false, error: `no response` })
+                    } else {
+                        /* console.log(response.data); */
+                        LocalStorage.timeoutInSeconds = 900;
+                        LocalStorage.put(`${matchId}`, response.data)
+                            .then(() => {
+                                return res.status(200).json({ success: true, data: response.data })
+
+                            });
+
+                        // return res.status(200).json({ success: true, data: response.data })
+                    }
+                }).catch((e) => {
+                    console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
+                })
+        }
+    })
+    // if (!ls.get(matchId)) {
+    //     await axios.get(url,
+    //         {
+    //             headers: riotAPIHeader
+    //         }).catch((e) => {
+    //             console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
+    //         }).then(async (response) => {
+    //             if (!response) {
+    //                 return res
+    //                     .status(404)
+    //                     .json({ success: false, error: `no response` })
+    //             } else {
+    //                 /* console.log(response.data); */
+    //                 ls.set(matchId, response.data, 1000000);
+
+    //                 return res.status(200).json({ success: true, data: response.data })
+    //             }
+    //         }).catch((e) => {
+    //             console.error(`!! Code ${e.response.status} --> ${e.response.statusText} !!`);
+    //         })
+    // } else {
+    //     console.log(`Fetching ${matchId} from cache...`);
+    //     return res.status(200).json({ success: true , data: ls.get(matchId)});
+
+    // }
 }
 
 module.exports = {

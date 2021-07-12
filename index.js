@@ -1,6 +1,6 @@
 const express = require('express')
 const cors = require('cors')
-
+const auth = require('./auth.json');
 const db = require('./db')
 const movieRouter = require('./routes/movie-router')
 
@@ -19,4 +19,4 @@ app.get('/', (req, res) => {
 
 app.use('/api', movieRouter)
 
-app.listen(apiPort, () => console.log(`Server running on port ${apiPort}`))
+app.listen(apiPort, auth.ip, () => console.log(`Server running on port ${apiPort}`))
